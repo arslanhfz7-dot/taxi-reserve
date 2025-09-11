@@ -3,15 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start -p 3001",
-  "migrate:deploy": "prisma migrate deploy || prisma db push || prisma generate"
-}
-,
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "migrate:deploy": "prisma migrate deploy || prisma db push || prisma generate"
+  },
   "dependencies": {
     "@prisma/client": "^6.16.1",
     "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.2",
     "chrono-node": "^2.8.4",
     "next": "15.5.2",
     "next-auth": "^4.24.11",

@@ -1,14 +1,24 @@
-// ---- Prisma schema (SQLite for local dev) ----
-
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./prisma/dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ResStatus {
+  PENDING
+  ASSIGNED
+  COMPLETED
+  R_RECEIVED
+}
 
 model User {
   id           String        @id @default(cuid())
@@ -24,31 +34,23 @@ model Reservation {
   id          String    @id @default(cuid())
   userId      String
   user        User      @relation(fields: [userId], references: [id])
+
   pickupText  String
   dropoffText String
   pickupLat   Float?
   pickupLng   Float?
   dropoffLat  Float?
   dropoffLng  Float?
+
   startAt     DateTime
   pax         Int       @default(1)
   priceEuro   Float?
   notes       String?
+  driver      String?          // <- simple text field like notes
   status      ResStatus @default(PENDING)
-  driver      String?   // 👈 new text field
   reminderAt  DateTime?
   createdAt   DateTime  @default(now())
-}
 
-enum ResStatus {
-  PENDING
-  ASSIGNED
-  COMPLETED
-  R_RECEIVED
-}
-
-
-enum Role {
-  USER
-  ADMIN
+  @@index([userId, startAt])
+  @@index([status])
 }
