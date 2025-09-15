@@ -6,24 +6,27 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import ReservationsList from "@/components/ReservationsList";
+import ReservationsFilters from "@/components/ReservationsFilters";
 
 type Search = { from?: string; to?: string; status?: string; sort?: "asc" | "desc" };
 
-export default async function ReservationsPage({ searchParams }: { searchParams?: Search }) {
+export default async function ReservationsPage({ searchParams = {} as Search }) {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email) redirect("/login");
 
   const where: any = { user: { email } };
 
-  if (searchParams?.from || searchParams?.to) {
+  if (searchParams.from || searchParams.to) {
     where.startAt = {};
     if (searchParams.from) where.startAt.gte = new Date(searchParams.from + "T00:00:00");
     if (searchParams.to)   where.startAt.lte = new Date(searchParams.to + "T23:59:59");
   }
-  if (searchParams?.status && searchParams.status !== "ALL") where.status = searchParams.status;
+  if (searchParams.status && searchParams.status !== "ALL") {
+    where.status = searchParams.status;
+  }
 
-  const sortDir: "asc" | "desc" = searchParams?.sort === "asc" ? "asc" : "desc";
+  const sortDir: "asc" | "desc" = searchParams.sort === "asc" ? "asc" : "desc";
 
   const reservations = await prisma.reservation.findMany({
     where,
@@ -46,12 +49,13 @@ export default async function ReservationsPage({ searchParams }: { searchParams?
   const items = reservations.map((r) => ({
     ...r,
     startAt: r.startAt.toISOString(),
-    endAt: null as string | null, // keep prop shape stable for the list
+    endAt: null as string | null,
   }));
 
   return (
     <div className="mx-auto max-w-2xl p-4">
       <h1 className="text-2xl font-semibold mb-4">Reservations</h1>
+      <ReservationsFilters />
       <ReservationsList items={items} />
     </div>
   );

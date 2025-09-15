@@ -8,16 +8,18 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+  const email = session?.user?.email;
+  if (!email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) return NextResponse.json({ error: "User not found" }, { status: 400 });
+  // Ensure the reservation belongs to the signed-in user (schema uses relation via email)
+  const existing = await prisma.reservation.findFirst({
+    where: { id: params.id, user: { email } },
+    select: { id: true },
+  });
 
-  // ensure the reservation belongs to this user
-  const existing = await prisma.reservation.findUnique({ where: { id: params.id } });
-  if (!existing || existing.userId !== user.id) {
+  if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
