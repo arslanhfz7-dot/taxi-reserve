@@ -7,30 +7,38 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import ReservationsList from "@/components/ReservationsList";
 
+type Search = {
+  from?: string;
+  to?: string;
+  status?: string;
+  sort?: "asc" | "desc";
+};
+
 export default async function ReservationsPage({
   searchParams,
 }: {
-  searchParams?: { from?: string; to?: string; status?: string; sort?: "asc" | "desc" };
+  searchParams?: Search;
 }) {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email) redirect("/login");
 
-  const where: any = { userEmail: email };
+  // Use relation filter (works regardless of whether FK column is userId or userEmail)
+  const where: any = { user: { email } };
 
-  // date filter
+  // Date filter
   if (searchParams?.from || searchParams?.to) {
     where.startAt = {};
     if (searchParams.from) where.startAt.gte = new Date(searchParams.from + "T00:00:00");
     if (searchParams.to) where.startAt.lte = new Date(searchParams.to + "T23:59:59");
   }
 
-  // status filter
+  // Status filter (ALL = no filter)
   if (searchParams?.status && searchParams.status !== "ALL") {
     where.status = searchParams.status;
   }
 
-  const sortDir = (searchParams?.sort === "asc" ? "asc" : "desc") as "asc" | "desc";
+  const sortDir: "asc" | "desc" = searchParams?.sort === "asc" ? "asc" : "desc";
 
   const reservations = await prisma.reservation.findMany({
     where,
@@ -39,7 +47,7 @@ export default async function ReservationsPage({
     select: {
       id: true,
       startAt: true,
-      endAt: true,          // ✅ still included
+      endAt: true,
       pickupText: true,
       dropoffText: true,
       pax: true,
@@ -51,7 +59,7 @@ export default async function ReservationsPage({
     },
   });
 
-  // Convert to client-safe items
+  // Serialize dates for the client component
   const items = reservations.map((r) => ({
     ...r,
     startAt: r.startAt.toISOString(),
