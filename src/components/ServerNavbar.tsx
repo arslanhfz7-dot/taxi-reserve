@@ -11,7 +11,6 @@ export default function ServerNavbar() {
   const user = session?.user;
   const [open, setOpen] = useState(false);
 
-  // Close mobile menu when route changes
   useEffect(() => {
     const handler = () => setOpen(false);
     window.addEventListener("popstate", handler);
@@ -25,7 +24,6 @@ export default function ServerNavbar() {
           AppReserve
         </Link>
 
-        {/* Desktop links */}
         <div className="hidden sm:flex items-center gap-6">
           <Link href="/reservations" className="hover:text-yellow-400">Reservations</Link>
           <Link href="/reservations/new" className="hover:text-yellow-400">New</Link>
@@ -46,17 +44,9 @@ export default function ServerNavbar() {
           )}
         </div>
 
-        {/* Mobile button */}
-        <button
-          className="sm:hidden"
-          onClick={() => setOpen(v => !v)}
-          aria-label="Menu"
-        >
-          ☰
-        </button>
+        <button className="sm:hidden" onClick={() => setOpen(v => !v)} aria-label="Menu">☰</button>
       </div>
 
-      {/* Mobile drawer */}
       {open && (
         <div className="sm:hidden border-t border-white/10 px-4 pb-3">
           <div className="flex flex-col gap-3 pt-3">
