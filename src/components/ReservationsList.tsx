@@ -1,10 +1,13 @@
 // src/components/ReservationsList.tsx
 "use client";
-import { useState } from "react";
 
+import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+
+/* ---------- Types ---------- */
 type Reservation = {
   id: string;
-  startAt: string;
+  startAt: string;             // ISO from server
   endAt?: string | null;
   pickupText?: string | null;
   dropoffText?: string | null;
@@ -13,77 +16,144 @@ type Reservation = {
   phone?: string | null;
   flight?: string | null;
   notes?: string | null;
-  status: string;
+  status: "PENDING" | "ASSIGNED" | "COMPLETED" | "R_RECEIVED" | string;
 };
 
-export default function ReservationsList({ items }: { items: Reservation[] }) {
+type Props = { items: Reservation[] };
+
+/* ---------- Helpers ---------- */
+function fmtDateParts(iso: string) {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return { date, time };
+}
+
+function labelStatus(s: Reservation["status"]) {
+  if (s === "R_RECEIVED") return "R received";
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
+
+/* Reusable tiny field row */
+function Field({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number | ReactNode;
+}) {
+  return (
+    <div className="text-sm leading-6">
+      <span className="text-neutral-400 font-medium">{label}: </span>
+      <span className="text-neutral-100">{value}</span>
+    </div>
+  );
+}
+
+/* ---------- Component ---------- */
+export default function ReservationsList({ items }: Props) {
+  const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [rows, setRows] = useState(items);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this reservation?")) return;
+
+    // optimistic remove
+    setBusyId(id);
+    const prev = rows;
+    setRows(prev.filter((r) => r.id !== id));
+
+    try {
+      const res = await fetch(`/api/reservations/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      router.refresh(); // revalidate server list
+    } catch (e) {
+      // rollback on error
+      setRows(prev);
+      alert("Failed to delete. Please try again.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="mt-6 rounded-xl border border-white/10 p-6 text-center text-sm text-neutral-400">
+        No reservations match your filters.
+      </div>
+    );
+  }
 
   return (
-    <ul className="grid gap-3">
-      {items.map((r) => {
-        const start = new Date(r.startAt);
-        const date = start.toLocaleDateString("en-GB", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-        });
-        const time = start.toLocaleTimeString("en-GB", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+    <ul className="mt-2 grid gap-4">
+      {rows.map((r) => {
+        const { date, time } = fmtDateParts(r.startAt);
+        const open = openId === r.id;
 
         return (
-          <li key={r.id} className="rounded-lg border border-neutral-800">
-            <button
-              onClick={() => setOpenId(openId === r.id ? null : r.id)}
-              className="w-full flex justify-between items-center px-4 py-2"
-            >
-              <span>
-                <span className="font-semibold">{date}</span>{" "}
-                <span className="text-sm text-neutral-400">{time}</span>
-              </span>
-              <span className="text-sm">{openId === r.id ? "▲" : "▼"}</span>
-            </button>
+          <li
+            key={r.id}
+            className="rounded-xl border border-white/10 bg-[#0e1426] shadow-sm transition hover:border-white/20"
+          >
+            {/* Header row */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-baseline gap-3">
+                <div className="text-base font-semibold">{date}</div>
+                <div className="text-sm text-neutral-400">{time}</div>
+                <span
+                  className={`ml-2 rounded-full px-2.5 py-0.5 text-xs ${
+                    r.status === "COMPLETED"
+                      ? "bg-green-500/15 text-green-300"
+                      : r.status === "ASSIGNED"
+                      ? "bg-blue-500/15 text-blue-300"
+                      : r.status === "R_RECEIVED"
+                      ? "bg-amber-500/15 text-amber-300"
+                      : "bg-neutral-500/15 text-neutral-300"
+                  }`}
+                >
+                  {labelStatus(r.status)}
+                </span>
+              </div>
 
-            {openId === r.id && (
-              <div className="px-4 pb-3 text-sm leading-6 space-y-1">
-                {r.pickupText && (
-                  <div>
-                    <span className="font-semibold">Pickup:</span> {r.pickupText}
-                  </div>
-                )}
-                {r.dropoffText && (
-                  <div>
-                    <span className="font-semibold">Drop-off:</span> {r.dropoffText}
-                  </div>
-                )}
-                <div>
-                  <span className="font-semibold">Pax:</span> {r.pax}
-                </div>
-                {typeof r.priceEuro === "number" && (
-                  <div>
-                    <span className="font-semibold">Price:</span> {r.priceEuro}€
-                  </div>
-                )}
-                {r.phone && (
-                  <div>
-                    <span className="font-semibold">Phone:</span> {r.phone}
-                  </div>
-                )}
-                {r.flight && (
-                  <div>
-                    <span className="font-semibold">Flight:</span> {r.flight}
-                  </div>
-                )}
-                {r.notes && (
-                  <div className="whitespace-pre-wrap">
-                    <span className="font-semibold">Notes:</span> {r.notes}
-                  </div>
-                )}
-                <div>
-                  <span className="font-semibold">Status:</span> {r.status}
-                </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setOpenId(open ? null : r.id)}
+                  className="rounded-md border border-white/10 px-3 py-1.5 text-sm hover:bg-white/5"
+                >
+                  {open ? "Hide" : "Details"}
+                </button>
+
+                <button
+                  disabled={busyId === r.id}
+                  onClick={() => handleDelete(r.id)}
+                  className={`rounded-md px-3 py-1.5 text-sm ${
+                    busyId === r.id
+                      ? "cursor-wait bg-red-700/40 text-red-200"
+                      : "bg-red-600/20 text-red-300 hover:bg-red-600/30"
+                  }`}
+                  title="Delete reservation"
+                >
+                  {busyId === r.id ? "Deleting…" : "Delete"}
+                </button>
+              </div>
+            </div>
+
+            {/* Details */}
+            {open && (
+              <div className="grid gap-1.5 border-t border-white/10 px-4 py-3">
+                {r.pickupText && <Field label="Pickup" value={r.pickupText} />}
+                {r.dropoffText && <Field label="Drop-off" value={r.dropoffText} />}
+                <Field label="Pax" value={r.pax} />
+                {typeof r.priceEuro === "number" && <Field label="Price" value={`${r.priceEuro}€`} />}
+                {r.phone && <Field label="Phone" value={r.phone} />}
+                {r.flight && <Field label="Flight" value={r.flight} />}
+                {r.notes && <Field label="Notes" value={<span className="whitespace-pre-wrap">{r.notes}</span>} />}
               </div>
             )}
           </li>
