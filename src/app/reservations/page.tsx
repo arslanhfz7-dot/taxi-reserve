@@ -7,29 +7,21 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import ReservationsList from "@/components/ReservationsList";
 
-type Search = {
-  from?: string;
-  to?: string;
-  status?: string;
-  sort?: "asc" | "desc";
-};
+type Search = { from?: string; to?: string; status?: string; sort?: "asc" | "desc" };
 
 export default async function ReservationsPage({ searchParams }: { searchParams?: Search }) {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email) redirect("/login");
 
-  // ✅ relation filter (schema-agnostic)
   const where: any = { user: { email } };
 
   if (searchParams?.from || searchParams?.to) {
     where.startAt = {};
     if (searchParams.from) where.startAt.gte = new Date(searchParams.from + "T00:00:00");
-    if (searchParams.to) where.startAt.lte = new Date(searchParams.to + "T23:59:59");
+    if (searchParams.to)   where.startAt.lte = new Date(searchParams.to + "T23:59:59");
   }
-  if (searchParams?.status && searchParams.status !== "ALL") {
-    where.status = searchParams.status;
-  }
+  if (searchParams?.status && searchParams.status !== "ALL") where.status = searchParams.status;
 
   const sortDir: "asc" | "desc" = searchParams?.sort === "asc" ? "asc" : "desc";
 
@@ -40,7 +32,6 @@ export default async function ReservationsPage({ searchParams }: { searchParams?
     select: {
       id: true,
       startAt: true,
-      endAt: true,
       pickupText: true,
       dropoffText: true,
       pax: true,
@@ -55,7 +46,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams?
   const items = reservations.map((r) => ({
     ...r,
     startAt: r.startAt.toISOString(),
-    endAt: r.endAt ? r.endAt.toISOString() : null,
+    endAt: null as string | null, // keep prop shape stable for the list
   }));
 
   return (

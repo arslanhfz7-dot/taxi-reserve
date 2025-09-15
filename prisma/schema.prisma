@@ -23,55 +23,52 @@ enum ResStatus {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  password  String? // keep optional if some users are OAuth-only
+  password  String?
   name      String?
   role      Role     @default(USER)
   createdAt DateTime @default(now())
 
   // Relations
   reservations Reservation[]
-  reminders    Reminder[] // 👈 opposite side of Reminder.user
+  reminders    Reminder[]
 }
 
 model Reservation {
-  id        String @id @default(cuid())
-  userEmail String
-  user      User   @relation(fields: [userEmail], references: [email])
+  id          String   @id @default(cuid())
+  userEmail   String
+  user        User     @relation(fields: [userEmail], references: [email])
 
   startAt     DateTime
   endAt       DateTime?
   pickupText  String?
   dropoffText String?
-  pax         Int       @default(1)
-  priceEuro   Int?
+  pax         Int      @default(1)
+  priceEuro   Float?   // <- keep FLOAT to match prod
   notes       String?
 
-  // NEW
-  phone  String? @db.VarChar(40)
-  flight String? @db.VarChar(40)
+  phone       String?  @db.VarChar(40)
+  flight      String?  @db.VarChar(40)
 
-  status ResStatus @default(PENDING)
+  status      ResStatus @default(PENDING)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Reverse relation for optional reminder linkage
-  reminders Reminder[]
+  reminders   Reminder[]
 }
 
 model Reminder {
-  id        String @id @default(cuid())
-  userEmail String
-  user      User   @relation(fields: [userEmail], references: [email])
+  id            String   @id @default(cuid())
+  userEmail     String
+  user          User     @relation(fields: [userEmail], references: [email])
 
-  // Optional link to a reservation
   reservationId String?
   reservation   Reservation? @relation(fields: [reservationId], references: [id])
 
-  title  String // e.g., "Call client", "Airport pickup"
-  note   String?
-  dueAt  DateTime
-  isDone Boolean  @default(false)
+  title   String
+  note    String?
+  dueAt   DateTime
+  isDone  Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
