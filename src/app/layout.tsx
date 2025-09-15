@@ -3,6 +3,7 @@ import "./globals.css";
 import "./mobile.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { SessionProvider } from "next-auth/react";
 import ServerNavbar from "@/components/ServerNavbar";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -12,13 +13,15 @@ export const metadata: Metadata = {
   description: "Reservation & Reminder App",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        {/* SSR nav prevents auth flicker */}
-        <ServerNavbar />
-        <main className="min-h-screen">{children}</main>
+        <SessionProvider refetchOnWindowFocus={false}>
+          {/* SSR nav prevents auth flicker */}
+          <ServerNavbar />
+          <main className="min-h-screen">{children}</main>
+        </SessionProvider>
       </body>
     </html>
   );

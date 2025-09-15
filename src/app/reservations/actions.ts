@@ -42,11 +42,13 @@ export async function updateReservationField(
     data.driver = v || null;
   }
 
-  if ("status" in patch) {
-    const allowed = new Set(["PENDING", "ASSIGNED", "COMPLETED", "R_RECEIVED"]);
-    if (!allowed.has(patch.status)) throw new Error("Invalid status");
-    data.status = patch.status;
+  if (typeof patch.status !== "undefined") {
+  const allowed = new Set(["PENDING", "ASSIGNED", "COMPLETED", "R_RECEIVED"] as const);
+  if (!allowed.has(patch.status as any)) {
+    throw new Error("Invalid status");
   }
+  data.status = patch.status as any;
+}
 
   await prisma.reservation.update({ where: { id }, data });
   return { ok: true };

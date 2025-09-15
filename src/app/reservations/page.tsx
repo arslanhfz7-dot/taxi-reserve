@@ -1,51 +1,67 @@
+// src/app/reservations/page.tsx
 export const runtime = "nodejs";
 
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import ReservationsList from "@/components/ReservationsList";
 
-export default async function ReservationsPage() {
+export default async function ReservationsPage({
+  searchParams,
+}: {
+  searchParams?: { from?: string; to?: string; status?: string; sort?: "asc" | "desc" };
+}) {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email) redirect("/login");
 
+  const where: any = { userEmail: email };
+
+  // date filter
+  if (searchParams?.from || searchParams?.to) {
+    where.startAt = {};
+    if (searchParams.from) where.startAt.gte = new Date(searchParams.from + "T00:00:00");
+    if (searchParams.to) where.startAt.lte = new Date(searchParams.to + "T23:59:59");
+  }
+
+  // status filter
+  if (searchParams?.status && searchParams.status !== "ALL") {
+    where.status = searchParams.status;
+  }
+
+  const sortDir = (searchParams?.sort === "asc" ? "asc" : "desc") as "asc" | "desc";
+
   const reservations = await prisma.reservation.findMany({
-    where: { user: { email } },
-    orderBy: { startAt: "desc" },
+    where,
+    orderBy: { startAt: sortDir },
     take: 500,
     select: {
       id: true,
-      startAt: true,        // Date
-      pax: true,            // number
-      pickupText: true,     // string | null
-      dropoffText: true,    // string | null
-      notes: true,          // string | null
+      startAt: true,
+      endAt: true,          // ✅ still included
+      pickupText: true,
+      dropoffText: true,
+      pax: true,
+      priceEuro: true,
+      phone: true,
+      flight: true,
+      notes: true,
+      status: true,
     },
   });
 
-  // Normalize to the props that <ReservationsList /> expects (all strings)
+  // Convert to client-safe items
   const items = reservations.map((r) => ({
-    id: r.id,
+    ...r,
     startAt: r.startAt.toISOString(),
-    pax: r.pax ?? 1,
-    pickup: r.pickupText ?? "",
-    dropoff: r.dropoffText ?? "",
-    notes: r.notes ?? "",
+    endAt: r.endAt ? r.endAt.toISOString() : null,
   }));
 
-  // Server action for bulk delete
-  async function deleteMany(ids: string[]) {
-    "use server";
-    const s = await getServerSession(authOptions);
-    const ownerEmail = s?.user?.email;
-    if (!ownerEmail) throw new Error("Unauthorized");
-
-    await prisma.reservation.deleteMany({
-      where: { id: { in: ids }, user: { email: ownerEmail } },
-    });
-  }
-
-  return <ReservationsList reservations={items} onDeleteMany={deleteMany} />;
+  return (
+    <div className="mx-auto max-w-2xl p-4">
+      <h1 className="text-2xl font-semibold mb-4">Reservations</h1>
+      <ReservationsList items={items} />
+    </div>
+  );
 }
