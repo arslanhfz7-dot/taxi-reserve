@@ -14,26 +14,19 @@ type Search = {
   sort?: "asc" | "desc";
 };
 
-export default async function ReservationsPage({
-  searchParams,
-}: {
-  searchParams?: Search;
-}) {
+export default async function ReservationsPage({ searchParams }: { searchParams?: Search }) {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email) redirect("/login");
 
-  // Use relation filter (works regardless of whether FK column is userId or userEmail)
+  // ✅ relation filter (schema-agnostic)
   const where: any = { user: { email } };
 
-  // Date filter
   if (searchParams?.from || searchParams?.to) {
     where.startAt = {};
     if (searchParams.from) where.startAt.gte = new Date(searchParams.from + "T00:00:00");
     if (searchParams.to) where.startAt.lte = new Date(searchParams.to + "T23:59:59");
   }
-
-  // Status filter (ALL = no filter)
   if (searchParams?.status && searchParams.status !== "ALL") {
     where.status = searchParams.status;
   }
@@ -59,7 +52,6 @@ export default async function ReservationsPage({
     },
   });
 
-  // Serialize dates for the client component
   const items = reservations.map((r) => ({
     ...r,
     startAt: r.startAt.toISOString(),
