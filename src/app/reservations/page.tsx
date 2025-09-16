@@ -11,7 +11,7 @@ import type { ReservationStatus } from "@/app/reservations/actions";
 
 type Search = { from?: string; to?: string; status?: string; sort?: "asc" | "desc" };
 
-// DB enum → UI label used by your row component
+// DB enum → UI label
 const DB_TO_UI: Record<
   "PENDING" | "ASSIGNED" | "COMPLETED" | "R_RECEIVED",
   ReservationStatus
@@ -27,20 +27,14 @@ export default async function ReservationsPage({ searchParams = {} as Search }) 
   const email = session?.user?.email;
   if (!email) redirect("/login");
 
-  // IMPORTANT: filter by userEmail to match actions.ts ownership check
   const where: any = { userEmail: email };
 
   if (searchParams.from || searchParams.to) {
     where.startAt = {};
-    if (searchParams.from) {
-      where.startAt.gte = new Date(searchParams.from + "T00:00:00");
-    }
-    if (searchParams.to) {
-      where.startAt.lte = new Date(searchParams.to + "T23:59:59");
-    }
+    if (searchParams.from) where.startAt.gte = new Date(searchParams.from + "T00:00:00");
+    if (searchParams.to) where.startAt.lte = new Date(searchParams.to + "T23:59:59");
   }
   if (searchParams.status && searchParams.status !== "ALL") {
-    // searchParams.status can be either DB code or UI label — normalize to DB code if needed
     where.status = searchParams.status;
   }
 
@@ -57,19 +51,19 @@ export default async function ReservationsPage({ searchParams = {} as Search }) 
       dropoffText: true,
       pax: true,
       priceEuro: true,
-      phone: true,     // restored
-      flight: true,    // restored
+      phone: true,
+      flight: true,
       notes: true,
-      status: true,    // DB enum code
+      status: true,     // DB enum code
       userEmail: true,
     },
   });
 
-  // Convert DB enum codes → UI labels that your components expect
+  // Send epoch ms for time + map status to UI labels
   const items = reservations.map((r) => ({
-    ...r, // includes phone and flight
-    startAt: r.startAt.toISOString(),
-    endAt: null as string | null,
+    ...r, // includes phone & flight
+    startAt: r.startAt.getTime(), // epoch ms (prevents TZ drift)
+    endAt: null as number | null,
     status: DB_TO_UI[r.status as keyof typeof DB_TO_UI] as ReservationStatus,
   }));
 

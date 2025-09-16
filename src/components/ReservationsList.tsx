@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation";
 /* ---------- Types ---------- */
 type Reservation = {
   id: string;
-  startAt: string;             // ISO from server
-  endAt?: string | null;
+  startAt: number;            // CHANGED: epoch ms
+  endAt?: number | null;      // CHANGED: keep shape with ms/null
   pickupText?: string | null;
   dropoffText?: string | null;
   pax: number;
@@ -22,8 +22,8 @@ type Reservation = {
 type Props = { items: Reservation[] };
 
 /* ---------- Helpers ---------- */
-function fmtDateParts(iso: string) {
-  const d = new Date(iso);
+function fmtDateParts(ms: number) {
+  const d = new Date(ms); // from epoch ms => always correct local time
   const date = d.toLocaleDateString("en-GB", {
     weekday: "short",
     day: "numeric",
