@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation";
 /* ---------- Types ---------- */
 type Reservation = {
   id: string;
-  startAt: number;            // CHANGED: epoch ms
-  endAt?: number | null;      // CHANGED: keep shape with ms/null
+  startAt: number;            // epoch ms
+  endAt?: number | null;
   pickupText?: string | null;
   dropoffText?: string | null;
   pax: number;
@@ -16,14 +16,14 @@ type Reservation = {
   phone?: string | null;
   flight?: string | null;
   notes?: string | null;
-  status: "PENDING" | "ASSIGNED" | "COMPLETED" | "R_RECEIVED" | string;
+  // (status removed)
 };
 
 type Props = { items: Reservation[] };
 
 /* ---------- Helpers ---------- */
 function fmtDateParts(ms: number) {
-  const d = new Date(ms); // from epoch ms => always correct local time
+  const d = new Date(ms);
   const date = d.toLocaleDateString("en-GB", {
     weekday: "short",
     day: "numeric",
@@ -31,11 +31,6 @@ function fmtDateParts(ms: number) {
   });
   const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   return { date, time };
-}
-
-function labelStatus(s: Reservation["status"]) {
-  if (s === "R_RECEIVED") return "R received";
-  return s.charAt(0) + s.slice(1).toLowerCase();
 }
 
 /* Reusable tiny field row */
@@ -58,7 +53,7 @@ function Field({
 export default function ReservationsList({ items }: Props) {
   const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(null);
-  const [rows, setRows] = useState(items);
+  const [rows, setRows] = useState<Reservation[]>(items);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
@@ -85,7 +80,7 @@ export default function ReservationsList({ items }: Props) {
   if (rows.length === 0) {
     return (
       <div className="mt-6 rounded-xl border border-white/10 p-6 text-center text-sm text-neutral-400">
-        No reservations match your filters.
+        No reservations found.
       </div>
     );
   }
@@ -106,19 +101,7 @@ export default function ReservationsList({ items }: Props) {
               <div className="flex items-baseline gap-3">
                 <div className="text-base font-semibold">{date}</div>
                 <div className="text-sm text-neutral-400">{time}</div>
-                <span
-                  className={`ml-2 rounded-full px-2.5 py-0.5 text-xs ${
-                    r.status === "COMPLETED"
-                      ? "bg-green-500/15 text-green-300"
-                      : r.status === "ASSIGNED"
-                      ? "bg-blue-500/15 text-blue-300"
-                      : r.status === "R_RECEIVED"
-                      ? "bg-amber-500/15 text-amber-300"
-                      : "bg-neutral-500/15 text-neutral-300"
-                  }`}
-                >
-                  {labelStatus(r.status)}
-                </span>
+                {/* status badge was here – removed */}
               </div>
 
               <div className="flex items-center gap-2">
