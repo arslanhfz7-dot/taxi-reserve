@@ -32,8 +32,12 @@ export default async function ReservationsPage({ searchParams = {} as Search }) 
 
   if (searchParams.from || searchParams.to) {
     where.startAt = {};
-    if (searchParams.from) where.startAt.gte = new Date(searchParams.from + "T00:00:00");
-    if (searchParams.to) where.startAt.lte = new Date(searchParams.to + "T23:59:59");
+    if (searchParams.from) {
+      where.startAt.gte = new Date(searchParams.from + "T00:00:00");
+    }
+    if (searchParams.to) {
+      where.startAt.lte = new Date(searchParams.to + "T23:59:59");
+    }
   }
   if (searchParams.status && searchParams.status !== "ALL") {
     // searchParams.status can be either DB code or UI label — normalize to DB code if needed
@@ -53,15 +57,17 @@ export default async function ReservationsPage({ searchParams = {} as Search }) 
       dropoffText: true,
       pax: true,
       priceEuro: true,
+      phone: true,     // restored
+      flight: true,    // restored
       notes: true,
-      status: true, // DB enum code
+      status: true,    // DB enum code
       userEmail: true,
     },
   });
 
   // Convert DB enum codes → UI labels that your components expect
   const items = reservations.map((r) => ({
-    ...r,
+    ...r, // includes phone and flight
     startAt: r.startAt.toISOString(),
     endAt: null as string | null,
     status: DB_TO_UI[r.status as keyof typeof DB_TO_UI] as ReservationStatus,
