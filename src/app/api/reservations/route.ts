@@ -15,13 +15,17 @@ function parseStartAt(input: unknown): Date {
   const raw = String(input ?? "").trim();
   if (!raw) throw new Error("startAt is required");
 
-  // 1) datetime-local: "2025-09-15T23:30"
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) {
-    const [datePart, timePart] = raw.split("T");
-    const [y, m, d] = datePart.split("-").map(Number);
-    const [H, M] = timePart.split(":").map(Number);
-    return new Date(y, m - 1, d, H, M); // ✅ local time
-  }
+  // 1) datetime-local: "2025-09-16T02:00"
+if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) {
+  const [datePart, timePart] = raw.split("T");
+  const [y, m, d] = datePart.split("-").map(Number);
+  const [H, M] = timePart.split(":").map(Number);
+
+  // 🚨 THIS is the critical fix:
+  // Construct local date directly (not UTC)
+  return new Date(y, m - 1, d, H, M, 0);
+}
+
 
   // 2) EU format: "15/09/2025, 23:30"
   const eu = raw.replace(",", "");
