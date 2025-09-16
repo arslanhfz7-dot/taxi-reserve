@@ -1,33 +1,60 @@
+// src/app/reservations/actions.ts
 "use server";
 
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
-// Helper: get current user
-async function getUserIdBySession() {
+// UI labels shown in your dropdown
+export type ReservationStatus = "Pending" | "Assigned" | "Completed" | "R received";
+
+// DB enum codes stored by Prisma
+type DbCode = "PENDING" | "ASSIGNED" | "COMPLETED" | "R_RECEIVED";
+
+const UI_TO_DB: Record<ReservationStatus, DbCode> = {
+  Pending: "PENDING",
+  Assigned: "ASSIGNED",
+  Completed: "COMPLETED",
+  "R received": "R_RECEIVED",
+};
+
+const DB_CODES: DbCode[] = ["PENDING", "ASSIGNED", "COMPLETED", "R_RECEIVED"];
+
+async function getUserEmailBySession() {
   const session = await getServerSession(authOptions);
-  const email = session?.user?.email;
-  if (!email) return null;
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-  return user?.id ?? null;
+  return session?.user?.email ?? null;
 }
 
-// Update a reservation (driver, notes, pax, status)
+/**
+ * Update a single reservation's editable fields.
+ * Ownership is validated by userEmail.
+ *
+ * `status` accepts either UI labels (e.g., "Pending")
+ * or DB codes (e.g., "PENDING").
+ */
 export async function updateReservationField(
   id: string,
-  patch: { notes?: string | null; pax?: number; driver?: string | null; status?: string }
+  patch: {
+    notes?: string | null;
+    pax?: number;
+    driver?: string | null;
+    status?: ReservationStatus | DbCode;
+  }
 ) {
-  const userId = await getUserIdBySession();
-  if (!userId) throw new Error("Unauthorized");
+  const email = await getUserEmailBySession();
+  if (!email) throw new Error("Unauthorized");
 
-  const owned = await prisma.reservation.findFirst({ where: { id, userId }, select: { id: true } });
+  const owned = await prisma.reservation.findFirst({
+    where: { id, userEmail: email },
+    select: { id: true },
+  });
   if (!owned) throw new Error("Not found");
 
   const data: Record<string, unknown> = {};
 
   if ("notes" in patch) {
-    data.notes = (patch.notes ?? "").toString().slice(0, 2000) || null;
+    const text = (patch.notes ?? "").toString().slice(0, 2000);
+    data.notes = text.length ? text : null;
   }
 
   if ("pax" in patch) {
@@ -43,12 +70,14 @@ export async function updateReservationField(
   }
 
   if (typeof patch.status !== "undefined") {
-  const allowed = new Set(["PENDING", "ASSIGNED", "COMPLETED", "R_RECEIVED"] as const);
-  if (!allowed.has(patch.status as any)) {
-    throw new Error("Invalid status");
+    const asDb: DbCode =
+      (DB_CODES.includes(patch.status as DbCode)
+        ? (patch.status as DbCode)
+        : UI_TO_DB[patch.status as ReservationStatus]) ?? (null as never);
+
+    if (!asDb) throw new Error("Invalid status");
+    data.status = asDb;
   }
-  data.status = patch.status as any;
-}
 
   await prisma.reservation.update({ where: { id }, data });
   return { ok: true };
