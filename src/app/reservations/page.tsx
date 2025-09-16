@@ -1,4 +1,3 @@
-// src/app/reservations/page.tsx
 export const runtime = "nodejs";
 
 import { prisma } from "@/lib/prisma";
@@ -11,11 +10,7 @@ import type { ReservationStatus } from "@/app/reservations/actions";
 
 type Search = { from?: string; to?: string; status?: string; sort?: "asc" | "desc" };
 
-// DB enum → UI label
-const DB_TO_UI: Record<
-  "PENDING" | "ASSIGNED" | "COMPLETED" | "R_RECEIVED",
-  ReservationStatus
-> = {
+const DB_TO_UI: Record<"PENDING" | "ASSIGNED" | "COMPLETED" | "R_RECEIVED", ReservationStatus> = {
   PENDING: "Pending",
   ASSIGNED: "Assigned",
   COMPLETED: "Completed",
@@ -54,17 +49,16 @@ export default async function ReservationsPage({ searchParams = {} as Search }) 
       phone: true,
       flight: true,
       notes: true,
-      status: true,     // DB enum code
+      status: true,
       userEmail: true,
     },
   });
 
-  // Send epoch ms for time + map status to UI labels
   const items = reservations.map((r) => ({
-    ...r, // includes phone & flight
-    startAt: r.startAt.getTime(), // epoch ms (prevents TZ drift)
+    ...r,
+    startAt: r.startAt.getTime(), // ✅ epoch ms
     endAt: null as number | null,
-    status: DB_TO_UI[r.status as keyof typeof DB_TO_UI] as ReservationStatus,
+    status: DB_TO_UI[r.status as keyof typeof DB_TO_UI],
   }));
 
   return (

@@ -1,62 +1,40 @@
-// src/app/api/reservations/route.ts
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { ResStatus } from "@prisma/client"; // <-- your Prisma enum
 
-/** Parse LOCAL time from datetime-local or EU string. No offset hacks. */
+/**
+ * Parse startAt safely:
+ * - Handles <input type="datetime-local"> as local time (no UTC shift)
+ * - Handles EU format "DD/MM/YYYY, HH:mm"
+ * - Fallback to Date(...)
+ */
 function parseStartAt(input: unknown): Date {
   const raw = String(input ?? "").trim();
   if (!raw) throw new Error("startAt is required");
 
-  // 1) 2025-09-15T23:30 (datetime-local)
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) {
-    const d = new Date(raw); // local
-    if (Number.isNaN(d.getTime())) throw new Error("Invalid startAt");
-    return d;
+  // 1) datetime-local: "2025-09-15T23:30"
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) {
+    const [datePart, timePart] = raw.split("T");
+    const [y, m, d] = datePart.split("-").map(Number);
+    const [H, M] = timePart.split(":").map(Number);
+    return new Date(y, m - 1, d, H, M); // ✅ local time
   }
 
-  // 2) 15/09/2025, 23:30 (comma optional)
+  // 2) EU format: "15/09/2025, 23:30"
   const eu = raw.replace(",", "");
   const m = eu.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/);
   if (m) {
     const [, dd, mm, yyyy, hh, mi] = m;
-    const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi)); // local
-    if (Number.isNaN(d.getTime())) throw new Error("Invalid startAt");
-    return d;
+    return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi));
   }
 
   // 3) Fallback
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) throw new Error("Invalid startAt");
   return d;
-}
-
-/** Normalize UI labels / strings to Prisma enum ResStatus */
-function normalizeStatus(input: unknown): ResStatus {
-  if (!input) return ResStatus.PENDING;
-  const s = String(input).trim();
-
-  // Accept DB codes
-  switch (s) {
-    case "PENDING": return ResStatus.PENDING;
-    case "ASSIGNED": return ResStatus.ASSIGNED;
-    case "COMPLETED": return ResStatus.COMPLETED;
-    case "R_RECEIVED": return ResStatus.R_RECEIVED;
-  }
-
-  // Accept pretty labels
-  const label = s.toLowerCase();
-  if (label === "pending") return ResStatus.PENDING;
-  if (label === "assigned") return ResStatus.ASSIGNED;
-  if (label === "completed") return ResStatus.COMPLETED;
-  if (label === "r received" || label === "r_received" || label === "rreceived")
-    return ResStatus.R_RECEIVED;
-
-  return ResStatus.PENDING;
 }
 
 export async function POST(req: Request) {
@@ -66,19 +44,9 @@ export async function POST(req: Request) {
     if (!email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json().catch(() => ({} as any));
-    const {
-      startAt,
-      pickupText,
-      dropoffText,
-      pax,
-      priceEuro,
-      phone,     // keep
-      flight,    // keep
-      notes,
-      status,
-    } = body || {};
+    const { startAt, pickupText, dropoffText, pax, priceEuro, phone, flight, notes, status } = body || {};
 
-    // LOCAL parse; no timezone math
+    // Parse & validate startAt
     let startAtDate: Date;
     try {
       startAtDate = parseStartAt(startAt);
@@ -91,35 +59,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid pax" }, { status: 400 });
     }
 
+    const rawPrice = priceEuro;
     const priceNum =
-      priceEuro === "" || priceEuro == null ? null : Number(priceEuro);
+      rawPrice === "" || rawPrice === null || rawPrice === undefined ? null : Number(rawPrice);
     if (priceNum !== null && !Number.isFinite(priceNum)) {
       return NextResponse.json({ error: "Invalid priceEuro" }, { status: 400 });
     }
 
-    const phoneClean =
-      phone == null ? null : String(phone).trim().slice(0, 32) || null;
-    const flightClean =
-      flight == null ? null : String(flight).trim().slice(0, 32) || null;
-
-    const statusEnum = normalizeStatus(status);
-
-    // Auto-reminder at T-30 minutes
+    // Auto-reminder T-30min
     const dueAt = new Date(startAtDate.getTime() - 30 * 60 * 1000);
 
     const created = await prisma.$transaction(async (tx) => {
       const reservation = await tx.reservation.create({
         data: {
-          userEmail: email,        // consistent with actions/page
-          startAt: startAtDate,    // store as-is
+          user: { connect: { email } },
+          startAt: startAtDate,
           pickupText: pickupText || null,
           dropoffText: dropoffText || null,
           pax: paxNum,
           priceEuro: priceNum,
-          phone: phoneClean,
-          flight: flightClean,
+          phone: phone || null,
+          flight: flight || null,
           notes: (notes ?? "")?.toString().slice(0, 2000) || null,
-          status: statusEnum,      // <-- Prisma enum, TS-safe
+          status: status ?? "PENDING",
         },
         select: {
           id: true,
@@ -132,15 +94,13 @@ export async function POST(req: Request) {
           flight: true,
           notes: true,
           status: true,
-          userEmail: true,
         },
       });
 
-      // Adjust to your Reminder schema if different
       await tx.reminder.create({
         data: {
-          userEmail: email,
-          reservationId: reservation.id,
+          user: { connect: { email } },
+          reservation: { connect: { id: reservation.id } },
           title: "Upcoming reservation",
           note: `Pickup: ${pickupText ?? "-"} → Drop-off: ${dropoffText ?? "-"}`,
           dueAt,

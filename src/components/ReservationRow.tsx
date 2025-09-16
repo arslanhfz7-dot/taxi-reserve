@@ -1,21 +1,15 @@
-// src/components/ReservationRow.tsx
 "use client";
 
 import { useState, useTransition } from "react";
 import { updateReservationField } from "@/app/reservations/actions";
 import type { ReservationStatus } from "@/app/reservations/actions";
 
-const STATUS_OPTIONS: ReservationStatus[] = [
-  "Pending",
-  "Assigned",
-  "Completed",
-  "R received",
-];
+const STATUS_OPTIONS: ReservationStatus[] = ["Pending", "Assigned", "Completed", "R received"];
 
 type Props = {
   res: {
     id: string;
-    startAt: string | Date;
+    startAt: number;               // ✅ epoch ms
     pickupText: string | null;
     dropoffText: string | null;
     pax: number | null;
@@ -27,7 +21,6 @@ type Props = {
 
 export default function ReservationRow({ res }: Props) {
   const [isPending, startTransition] = useTransition();
-
   const [status, setStatus] = useState<ReservationStatus>(res.status);
   const [notes, setNotes] = useState(res.notes ?? "");
   const [notesDirty, setNotesDirty] = useState(false);
@@ -58,28 +51,22 @@ export default function ReservationRow({ res }: Props) {
     });
   };
 
-  const startAtText =
-    typeof res.startAt === "string"
-      ? new Date(res.startAt).toLocaleString()
-      : res.startAt.toLocaleString();
+  const startAtText = new Date(res.startAt).toLocaleString("en-GB", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg bg-slate-900/60 p-3 ring-1 ring-slate-800">
-      {/* Left: route, time, notes */}
       <div className="min-w-0">
         <div className="text-sm text-slate-200">
-          <span className="font-medium">
-            {res.pickupText || "—"}
-          </span>
+          <span className="font-medium">{res.pickupText || "—"}</span>
           <span className="mx-1 text-slate-500">→</span>
-          <span className="font-medium">
-            {res.dropoffText || "—"}
-          </span>
+          <span className="font-medium">{res.dropoffText || "—"}</span>
         </div>
 
         <div className="mt-1 text-xs text-slate-400">{startAtText}</div>
 
-        {/* Editable notes */}
         <div className="mt-3">
           <label className="mb-1 block text-xs text-slate-400">Notes</label>
           <textarea
@@ -104,7 +91,6 @@ export default function ReservationRow({ res }: Props) {
         </div>
       </div>
 
-      {/* Right: status dropdown + saving state */}
       <div className="flex shrink-0 flex-col items-end gap-2">
         <div className="text-right">
           <label className="mb-1 block text-xs text-slate-400">Status</label>
@@ -121,9 +107,7 @@ export default function ReservationRow({ res }: Props) {
           </select>
         </div>
 
-        {(isPending || saving) && (
-          <span className="text-xs text-slate-400">Saving…</span>
-        )}
+        {(isPending || saving) && <span className="text-xs text-slate-400">Saving…</span>}
       </div>
     </div>
   );
