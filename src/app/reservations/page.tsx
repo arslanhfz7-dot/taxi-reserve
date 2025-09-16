@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import ReservationsList from "@/components/ReservationsList";
+import SortControls from "@/components/SortControls"; // ⬅️ add this
 // ❌ removed: ReservationsFilters + ReservationStatus type
 
 type Search = { from?: string; to?: string; sort?: "asc" | "desc" };
@@ -56,5 +57,13 @@ export default async function ReservationsPage({ searchParams = {} as Search }) 
       {/* ❌ removed <ReservationsFilters /> */}
       <ReservationsList items={items} />
     </div>
+    
   );
+  (
+  <div className="mx-auto max-w-2xl p-4">
+    <h1 className="mb-4 text-2xl font-semibold">Reservations</h1>
+    <SortControls />  {/* ⬅️ new sort control */}
+    <ReservationsList items={items} />
+  </div>
+);
 }
