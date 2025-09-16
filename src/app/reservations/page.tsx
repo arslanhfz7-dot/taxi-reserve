@@ -6,6 +6,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import ReservationsList from "@/components/ReservationsList";
 import SortControls from "@/components/SortControls"; // ⬅️ add this
+import Link from "next/link";
+
 // ❌ removed: ReservationsFilters + ReservationStatus type
 
 type Search = { from?: string; to?: string; sort?: "asc" | "desc" };
