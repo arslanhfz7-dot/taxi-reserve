@@ -3,13 +3,14 @@
 import { useState, useTransition } from "react";
 import { updateReservationField } from "@/app/reservations/actions";
 import type { ReservationStatus } from "@/app/reservations/actions";
+import { relTimeFromNow } from "@/lib/parseStartAt";
 
 const STATUS_OPTIONS: ReservationStatus[] = ["Pending", "Assigned", "Completed", "R received"];
 
 type Props = {
   res: {
     id: string;
-    startAt: number;               // ✅ epoch ms
+    startAt: number; // epoch ms (UTC)
     pickupText: string | null;
     dropoffText: string | null;
     pax: number | null;
@@ -51,10 +52,18 @@ export default function ReservationRow({ res }: Props) {
     });
   };
 
-  const startAtText = new Date(res.startAt).toLocaleString("en-GB", {
+  const dt = new Date(res.startAt);
+  const startAtText = dt.toLocaleString("en-GB", {
     dateStyle: "short",
     timeStyle: "short",
   });
+
+  const rel = relTimeFromNow(dt);
+  const chipClass = rel.includes("ago")
+    ? "bg-red-100 text-red-800"
+    : rel.startsWith("in 0")
+    ? "bg-orange-100 text-orange-800"
+    : "bg-gray-100 text-gray-800";
 
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg bg-slate-900/60 p-3 ring-1 ring-slate-800">
@@ -65,7 +74,10 @@ export default function ReservationRow({ res }: Props) {
           <span className="font-medium">{res.dropoffText || "—"}</span>
         </div>
 
-        <div className="mt-1 text-xs text-slate-400">{startAtText}</div>
+        <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
+          <span>{startAtText}</span>
+          <span className={`rounded px-2 py-0.5 text-[10px] ${chipClass}`}>{rel}</span>
+        </div>
 
         <div className="mt-3">
           <label className="mb-1 block text-xs text-slate-400">Notes</label>
