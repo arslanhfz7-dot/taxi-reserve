@@ -1,12 +1,14 @@
+// src/app/reservations/new/page.tsx
 "use client";
+
 import { useState } from "react";
-import { localInputToUTC } from "@/lib/parseStartAt";
+import { localDateTimeToUtcIso } from "@/lib/parseStartAt";
 
 export default function NewReservation() {
   const [form, setForm] = useState({
     pickupText: "",
     dropoffText: "",
-    startAt: "",
+    startAt: "",          // "YYYY-MM-DDTHH:mm"
     pax: 1,
     priceEuro: "",
     phone: "",
@@ -21,27 +23,25 @@ export default function NewReservation() {
     setLoading(true);
     setMsg(null);
 
-    // 1) Convert datetime-local -> UTC
-    const utc = localInputToUTC(form.startAt);
-    if (!utc) {
+    // Convert local wall-time -> UTC ISO (ends with "Z")
+    const iso = localDateTimeToUtcIso(form.startAt);
+    if (!iso) {
       setLoading(false);
       setMsg("Please provide a valid date & time.");
       return;
     }
 
-    // 2) Normalize payload (numbers/nulls)
     const payload = {
       pickupText: form.pickupText || null,
       dropoffText: form.dropoffText || null,
-      startAt: utc.toISOString(),                 // <-- UTC ISO
+      startAt: iso,                                   // <-- UTC ISO
       pax: Number(form.pax) || 1,
       priceEuro: form.priceEuro ? Number(form.priceEuro) : null,
-      phone: form.phone || null,                  // requires phone String? in Prisma
-      flight: form.flight || null,                // requires flight String? in Prisma
+      phone: form.phone || null,
+      flight: form.flight || null,
       notes: form.notes ? form.notes.slice(0, 2000) : null,
     };
 
-    // 3) Single POST
     const res = await fetch("/api/reservations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -55,7 +55,6 @@ export default function NewReservation() {
       return;
     }
 
-    // Optional: handle 401 redirect
     if (res.status === 401) {
       setMsg("Please log in first.");
       window.location.href = "/login";
@@ -68,7 +67,7 @@ export default function NewReservation() {
 
   return (
     <div className="mx-auto max-w-md p-4">
-      <h1 className="text-2xl font-semibold mb-4">New reservation</h1>
+      <h1 className="mb-4 text-2xl font-semibold">New reservation</h1>
       <form onSubmit={submit} className="grid gap-3">
         <input
           className="rounded-md border border-neutral-700 bg-neutral-900 p-2"
@@ -83,7 +82,7 @@ export default function NewReservation() {
           onChange={(e) => setForm({ ...form, dropoffText: e.target.value })}
         />
         <div>
-          <label className="block text-sm mb-1">Date & time</label>
+          <label className="mb-1 block text-sm">Date & time</label>
           <input
             type="datetime-local"
             className="w-full rounded-md border border-neutral-700 bg-neutral-900 p-2"
@@ -117,14 +116,14 @@ export default function NewReservation() {
           onChange={(e) => setForm({ ...form, flight: e.target.value })}
         />
         <textarea
-          className="rounded-md border border-neutral-700 bg-neutral-900 p-2 min-h-[90px]"
+          className="min-h-[90px] rounded-md border border-neutral-700 bg-neutral-900 p-2"
           placeholder="Notes"
           value={form.notes}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
         />
         <button
           disabled={loading}
-          className="rounded-md bg-white/10 px-4 py-2 hover:bg-white/20"
+          className="rounded-md bg-white/10 px-4 py-2 hover:bg-white/20 disabled:opacity-60"
         >
           {loading ? "Saving..." : "Save"}
         </button>

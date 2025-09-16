@@ -1,31 +1,33 @@
 // src/lib/parseStartAt.ts
 
 /**
- * Convert <input type="datetime-local"> (local wall time) to a UTC Date.
- * Example: "2025-09-16T10:45" -> "2025-09-16T08:45Z" (for Barcelona summer UTC+2).
+ * Turn an <input type="datetime-local"> value (local wall time)
+ * directly into a UTC ISO string for the API/DB.
+ * No manual offset arithmetic – JavaScript handles it.
  */
-export function localInputToUTC(dateTimeLocal: string) {
-  if (!dateTimeLocal) return null;
-  const s = dateTimeLocal.replace(" ", "T");   // e.g. "2025-09-16T10:45"
-  const local = new Date(s);                   // interpreted in *local* TZ
-  if (isNaN(local.getTime())) return null;
-
-  // getTimezoneOffset() = UTC - local (in minutes)
-  // Correct conversion: subtract offset (not add, not double-subtract).
-  const utcMs = local.getTime() - local.getTimezoneOffset() * 60000;
-  return new Date(utcMs);                      // true UTC moment
+export function localDateTimeToUtcIso(dateTimeLocal: string) {
+  if (!dateTimeLocal) return "";
+  const s = dateTimeLocal.replace(" ", "T"); // "YYYY-MM-DDTHH:mm"
+  const d = new Date(s);                     // interpreted as LOCAL time
+  if (isNaN(d.getTime())) return "";
+  return d.toISOString();                    // UTC ISO (ends with "Z")
 }
 
-/** Relative label like "in 2h 15m" or "5m ago". */
-export function relTimeFromNow(isoOrDate: string | Date) {
-  const d = new Date(isoOrDate);
+/** Short relative time like "in 2h 15m" / "5m ago". */
+export function relTimeFromNow(value: string | number | Date) {
+  const d = new Date(value);
   if (isNaN(d.getTime())) return "";
-  const now = new Date();
-  const diffMs = d.getTime() - now.getTime();
-  const abs = Math.abs(diffMs);
-  const mins = Math.round(abs / 60000);
+  const diff = d.getTime() - Date.now();
+  const mins = Math.round(Math.abs(diff) / 60000);
   const hrs = Math.floor(mins / 60);
   const rem = mins % 60;
   const label = hrs >= 1 ? `${hrs}h${rem ? ` ${rem}m` : ""}` : `${mins}m`;
-  return diffMs >= 0 ? `in ${label}` : `${label} ago`;
+  return diff >= 0 ? `in ${label}` : `${label} ago`;
+}
+
+/** Local-friendly absolute formatter for display. */
+export function formatLocalDateTime(value: string | number | Date) {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
