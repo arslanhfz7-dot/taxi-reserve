@@ -3,12 +3,13 @@
 
 import React, { useState, useTransition } from "react";
 import { updateReservationField } from "@/app/reservations/actions";
+import { relTimeFromNow } from "@/lib/parseStartAt";
 
 type DbStatus = "PENDING" | "ASSIGNED" | "COMPLETED" | "R_RECEIVED";
 
 type Reservation = {
   id: string;
-  startAt: string | Date;          // <-- use startAt (adjust if your field is pickupAt)
+  startAt: string | Date;          // stored in UTC; string ISO or Date
   pickupText?: string | null;
   dropoffText?: string | null;
   status: DbStatus;
@@ -38,6 +39,7 @@ export default function ReservationsTable({ items }: { items: Reservation[] }) {
         <thead className="bg-gray-800 text-gray-200">
           <tr>
             <th className="px-4 py-2 font-medium">Time</th>
+            <th className="px-4 py-2 font-medium">When</th>
             <th className="px-4 py-2 font-medium">From</th>
             <th className="px-4 py-2 font-medium">To</th>
             <th className="px-4 py-2 font-medium">Status</th>
@@ -51,6 +53,13 @@ export default function ReservationsTable({ items }: { items: Reservation[] }) {
           {items.map((r) => (
             <Row key={r.id} r={r} />
           ))}
+          {items.length === 0 && (
+            <tr>
+              <td colSpan={9} className="px-4 py-6 text-center text-gray-400">
+                No reservations yet.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -59,9 +68,21 @@ export default function ReservationsTable({ items }: { items: Reservation[] }) {
 
 function Row({ r }: { r: Reservation }) {
   const dt = typeof r.startAt === "string" ? new Date(r.startAt) : r.startAt;
+
+  // When chip
+  const rel = relTimeFromNow(dt);
+  const chipClass = rel.includes("ago")
+    ? "bg-red-100 text-red-800"
+    : rel.startsWith("in 0")
+    ? "bg-orange-100 text-orange-800"
+    : "bg-gray-100 text-gray-800";
+
   return (
     <tr className="border-t border-gray-700 hover:bg-gray-800/60">
       <td className="px-4 py-2 whitespace-nowrap">{dt.toLocaleString()}</td>
+      <td className="px-4 py-2">
+        <span className={`rounded px-2 py-0.5 text-xs ${chipClass}`}>{rel}</span>
+      </td>
       <td className="px-4 py-2 max-w-[220px]">
         <Ellipsis text={r.pickupText || "—"} />
       </td>

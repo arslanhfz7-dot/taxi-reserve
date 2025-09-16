@@ -1,25 +1,50 @@
 // src/lib/parseStartAt.ts
 
 /**
- * Parse a <input type="datetime-local"> value as local time.
- * Example input: "2025-09-16T02:00"
- * We construct the Date in local time (Barcelona) and do NOT shift with UTC.
+ * Convert an <input type="datetime-local"> (local time) to a UTC Date.
+ * Example input: "2025-09-16T13:30"
  */
-export function parseStartAt(raw: string): Date {
-  if (!raw) throw new Error("startAt is required");
+export function localInputToUTC(dateTimeLocal: string) {
+  if (!dateTimeLocal) return null;
+  const s = dateTimeLocal.replace(" ", "T");
+  const local = new Date(s);
+  if (isNaN(local.getTime())) return null;
+  const utcMs = local.getTime() - local.getTimezoneOffset() * 60000;
+  return new Date(utcMs);
+}
 
-  // 1) datetime-local: "YYYY-MM-DDTHH:mm"
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) {
-    const [datePart, timePart] = raw.split("T");
-    const [y, m, d] = datePart.split("-").map(Number);
-    const [H, M] = timePart.split(":").map(Number);
+/**
+ * Short human relative time: "in 2h 10m", "5m ago"
+ */
+export function relTimeFromNow(isoOrDate: string | Date) {
+  const d = new Date(isoOrDate);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  const diffMs = d.getTime() - now.getTime();
 
-    // ✅ Local time (no UTC shift)
-    return new Date(y, m - 1, d, H, M, 0);
+  const abs = Math.abs(diffMs);
+  const mins = Math.round(abs / 60000);
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+
+  const label = hrs >= 1 ? `${hrs}h${rem ? ` ${rem}m` : ""}` : `${mins}m`;
+  return diffMs >= 0 ? `in ${label}` : `${label} ago`;
+}
+
+/**
+ * Tailwind-ish status chip helper (string so it works in className directly)
+ */
+export function statusClass(status?: string) {
+  switch (status) {
+    case "PENDING":
+      return "bg-yellow-100 text-yellow-800";
+    case "ASSIGNED":
+      return "bg-blue-100 text-blue-800";
+    case "COMPLETED":
+      return "bg-green-100 text-green-800";
+    case "R_RECEIVED":
+      return "bg-purple-100 text-purple-800";
+    default:
+      return "bg-gray-100 text-gray-800";
   }
-
-  // 2) fallback
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) throw new Error("Invalid startAt");
-  return d;
 }
