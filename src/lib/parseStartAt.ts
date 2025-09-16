@@ -1,6 +1,9 @@
 // src/lib/parseStartAt.ts
 
-/** Convert <input type="datetime-local"> (local wall time) to a UTC Date */
+/**
+ * Convert <input type="datetime-local"> (local wall time) to a UTC Date.
+ * Example: "2025-09-16T10:45" -> "2025-09-16T08:45Z" (for Barcelona summer UTC+2).
+ */
 export function localInputToUTC(dateTimeLocal: string) {
   if (!dateTimeLocal) return null;
   const s = dateTimeLocal.replace(" ", "T");   // e.g. "2025-09-16T10:45"
@@ -8,12 +11,12 @@ export function localInputToUTC(dateTimeLocal: string) {
   if (isNaN(local.getTime())) return null;
 
   // getTimezoneOffset() = UTC - local (in minutes)
-  // To get UTC, ADD the offset.
-  const utcMs = local.getTime() + local.getTimezoneOffset() * 60000;
-  return new Date(utcMs);                      // a true UTC moment
+  // Correct conversion: subtract offset (not add, not double-subtract).
+  const utcMs = local.getTime() - local.getTimezoneOffset() * 60000;
+  return new Date(utcMs);                      // true UTC moment
 }
 
-/** Relative label like "in 2h 15m" or "5m ago" */
+/** Relative label like "in 2h 15m" or "5m ago". */
 export function relTimeFromNow(isoOrDate: string | Date) {
   const d = new Date(isoOrDate);
   if (isNaN(d.getTime())) return "";
