@@ -4,80 +4,109 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { ResStatus } from "@prisma/client"; // <- Prisma enum (names may differ in your schema)
 
+/* ------------------------------------------------------------------ */
+/* Time parsing – bulletproof                                          */
+/* ------------------------------------------------------------------ */
 /**
- * Parse startAt safely:
- * - Handles <input type="datetime-local"> as local time (no UTC shift)
- * - Handles EU format "DD/MM/YYYY, HH:mm"
- * - Fallback to Date(...)
+ * Prefer epoch milliseconds from the client (`startAtMs`).
+ * Otherwise, accept:
+ *   - <input type="datetime-local"> => "YYYY-MM-DDTHH:mm"  (treated as LOCAL time)
+ *   - "DD/MM/YYYY, HH:mm" (comma optional)                 (treated as LOCAL time)
+ *   - Any other string that Date can parse (Z/offset ok)
  */
-function parseStartAt(input: unknown): Date {
-  const raw = String(input ?? "").trim();
-  if (!raw) throw new Error("startAt is required");
-
-  // 1) datetime-local: "2025-09-16T02:00"
-if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) {
-  const [datePart, timePart] = raw.split("T");
-  const [y, m, d] = datePart.split("-").map(Number);
-  const [H, M] = timePart.split(":").map(Number);
-
-  // 🚨 THIS is the critical fix:
-  // Construct local date directly (not UTC)
-  return new Date(y, m - 1, d, H, M, 0);
-}
-
-
-  // 2) EU format: "15/09/2025, 23:30"
-  const eu = raw.replace(",", "");
-  const m = eu.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/);
-  if (m) {
-    const [, dd, mm, yyyy, hh, mi] = m;
-    return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi));
+function parseStartAtFromBody(body: any): Date {
+  // 1) Preferred: exact epoch milliseconds from the browser
+  if (typeof body?.startAtMs === "number" && Number.isFinite(body.startAtMs)) {
+    const d = new Date(body.startAtMs);
+    if (!Number.isFinite(d.getTime())) throw new Error("Invalid startAtMs");
+    return d;
   }
 
-  // 3) Fallback
+  const raw = String(body?.startAt ?? "").trim();
+  if (!raw) throw new Error("startAt is required");
+
+  // 2) datetime-local: "YYYY-MM-DDTHH:mm" (construct **local** Date explicitly)
+  const m1 = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (m1) {
+    const [, y, mo, d, H, M] = m1.map(Number);
+    return new Date(y, mo - 1, d, H, M, 0); // LOCAL time; no UTC shift
+  }
+
+  // 3) EU format: "DD/MM/YYYY, HH:mm" (comma optional) -> LOCAL
+  const eu = raw.replace(",", "");
+  const m2 = eu.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/);
+  if (m2) {
+    const [, dd, mm, yyyy, hh, mi] = m2.map(Number);
+    return new Date(yyyy, mm - 1, dd, hh, mi, 0); // LOCAL
+  }
+
+  // 4) Fallback – allow ISO with Z/offset, etc.
   const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) throw new Error("Invalid startAt");
+  if (!Number.isFinite(d.getTime())) throw new Error("Invalid startAt");
   return d;
 }
+
+/* ------------------------------------------------------------------ */
 
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const email = session?.user?.email;
-    if (!email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const body = await req.json().catch(() => ({} as any));
-    const { startAt, pickupText, dropoffText, pax, priceEuro, phone, flight, notes, status } = body || {};
+    const {
+      pickupText,
+      dropoffText,
+      pax,
+      priceEuro,
+      phone,
+      flight,
+      notes,
+      status, // may be string like "PENDING" | "ASSIGNED" | ...
+    } = body || {};
 
-    // Parse & validate startAt
+    // Parse start time (LOCAL safe)
     let startAtDate: Date;
     try {
-      startAtDate = parseStartAt(startAt);
+      startAtDate = parseStartAtFromBody(body);
     } catch (e: any) {
       return NextResponse.json({ error: e?.message || "Invalid startAt" }, { status: 400 });
     }
 
+    // Validate pax
     const paxNum = Number(pax ?? 1);
     if (!Number.isFinite(paxNum) || paxNum < 1 || paxNum > 99) {
       return NextResponse.json({ error: "Invalid pax" }, { status: 400 });
     }
 
-    const rawPrice = priceEuro;
+    // Validate/normalize price
     const priceNum =
-      rawPrice === "" || rawPrice === null || rawPrice === undefined ? null : Number(rawPrice);
+      priceEuro === "" || priceEuro == null ? null : Number(priceEuro);
     if (priceNum !== null && !Number.isFinite(priceNum)) {
       return NextResponse.json({ error: "Invalid priceEuro" }, { status: 400 });
     }
 
-    // Auto-reminder T-30min
+    // Status: coerce to Prisma enum (defaults to PENDING)
+    const statusEnum: ResStatus = (Object.values(ResStatus) as string[]).includes(
+      String(status)
+    )
+      ? (status as ResStatus)
+      : ResStatus.PENDING;
+
+    // Auto-reminder at T-30 minutes
     const dueAt = new Date(startAtDate.getTime() - 30 * 60 * 1000);
 
     const created = await prisma.$transaction(async (tx) => {
+      // Create reservation
       const reservation = await tx.reservation.create({
         data: {
-          user: { connect: { email } },
-          startAt: startAtDate,
+          userEmail: email,                  // uses userEmail field
+          startAt: startAtDate,              // store the exact instant
           pickupText: pickupText || null,
           dropoffText: dropoffText || null,
           pax: paxNum,
@@ -85,7 +114,7 @@ export async function POST(req: Request) {
           phone: phone || null,
           flight: flight || null,
           notes: (notes ?? "")?.toString().slice(0, 2000) || null,
-          status: status ?? "PENDING",
+          status: statusEnum,                // Prisma enum, not a bare string
         },
         select: {
           id: true,
@@ -98,13 +127,15 @@ export async function POST(req: Request) {
           flight: true,
           notes: true,
           status: true,
+          userEmail: true,
         },
       });
 
+      // Create reminder (adjust to your schema if different)
       await tx.reminder.create({
         data: {
-          user: { connect: { email } },
-          reservation: { connect: { id: reservation.id } },
+          userEmail: email,
+          reservationId: reservation.id,
           title: "Upcoming reservation",
           note: `Pickup: ${pickupText ?? "-"} → Drop-off: ${dropoffText ?? "-"}`,
           dueAt,
