@@ -31,7 +31,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Whitelist fields (status removed)
+  // Whitelist fields (no 'driver', no 'status')
   const allowed = [
     "pickupText",
     "dropoffText",
@@ -41,7 +41,6 @@ export async function PATCH(
     "priceEuro",
     "phone",
     "flight",
-    "driver",
     "notes",
   ];
   const data: any = {};
@@ -69,7 +68,6 @@ export async function PATCH(
   if ("dropoffText" in data) data.dropoffText = (data.dropoffText ?? "").toString().slice(0, 500) || null;
   if ("phone" in data) data.phone = (data.phone ?? "").toString().slice(0, 100) || null;
   if ("flight" in data) data.flight = (data.flight ?? "").toString().slice(0, 50) || null;
-  if ("driver" in data) data.driver = (data.driver ?? "").toString().slice(0, 100) || null;
 
   await prisma.reservation.update({
     where: { id: params.id },
