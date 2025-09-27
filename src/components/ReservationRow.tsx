@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { updateReservationField } from "@/app/reservations/actions";
 import type { ReservationStatus } from "@/app/reservations/actions";
 import { relTimeFromNow } from "@/lib/parseStartAt";
@@ -118,6 +119,14 @@ export default function ReservationRow({ res }: Props) {
             ))}
           </select>
         </div>
+
+        {/* NEW: Edit button */}
+        <Link
+          href={`/reservations/${res.id}/edit`}
+          className="rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-sm text-slate-100 hover:bg-slate-700"
+        >
+          Edit
+        </Link>
 
         {(isPending || saving) && <span className="text-xs text-slate-400">Saving…</span>}
       </div>
