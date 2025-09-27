@@ -45,6 +45,12 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
     notes: initial.notes ?? "",
   });
 
+  // 🔧 unify input styles so all controls align (same height/padding across iOS/desktop)
+  const inputClass =
+    "w-full h-11 rounded-md border border-gray-600 bg-gray-800 px-3 text-gray-100 placeholder-gray-400 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-500/30 appearance-none";
+  const textareaClass =
+    "w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100 placeholder-gray-400 outline-none focus:border-gray-500 focus:ring-2 focus:ring-gray-500/30 min-h-[120px]";
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (saving) return;
@@ -87,7 +93,7 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
         <label className="block">
           <span className="mb-1 block text-sm text-gray-300">From</span>
           <input
-            className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100 placeholder-gray-400"
+            className={inputClass}
             value={form.pickupText}
             onChange={(e) => setForm({ ...form, pickupText: e.target.value })}
             placeholder="Pickup location"
@@ -97,7 +103,7 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
         <label className="block">
           <span className="mb-1 block text-sm text-gray-300">To</span>
           <input
-            className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100 placeholder-gray-400"
+            className={inputClass}
             value={form.dropoffText}
             onChange={(e) => setForm({ ...form, dropoffText: e.target.value })}
             placeholder="Drop-off location"
@@ -110,7 +116,7 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
           <span className="mb-1 block text-sm text-gray-300">Start</span>
           <input
             type="datetime-local"
-            className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100"
+            className={inputClass}
             value={form.startAt}
             onChange={(e) => setForm({ ...form, startAt: e.target.value })}
           />
@@ -120,7 +126,7 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
           <span className="mb-1 block text-sm text-gray-300">End (optional)</span>
           <input
             type="datetime-local"
-            className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100"
+            className={inputClass}
             value={form.endAt}
             onChange={(e) => setForm({ ...form, endAt: e.target.value })}
           />
@@ -134,7 +140,7 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
             type="number"
             min={1}
             max={99}
-            className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100"
+            className={inputClass}
             value={form.pax}
             onChange={(e) => setForm({ ...form, pax: e.target.value })}
           />
@@ -145,7 +151,7 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
           <input
             type="number"
             step="0.01"
-            className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100"
+            className={inputClass}
             value={String(form.priceEuro ?? "")}
             onChange={(e) =>
               setForm({
@@ -160,7 +166,7 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
         <label className="block">
           <span className="mb-1 block text-sm text-gray-300">Phone</span>
           <input
-            className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100 placeholder-gray-400"
+            className={inputClass}
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             placeholder="+34 600 000 000"
@@ -172,7 +178,7 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
         <label className="block">
           <span className="mb-1 block text-sm text-gray-300">Flight</span>
           <input
-            className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100 placeholder-gray-400"
+            className={inputClass}
             value={form.flight}
             onChange={(e) => setForm({ ...form, flight: e.target.value })}
             placeholder="VY1234"
@@ -184,25 +190,25 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
         <span className="mb-1 block text-sm text-gray-300">Notes</span>
         <textarea
           rows={4}
-          className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100 placeholder-gray-400"
+          className={textareaClass}
           value={form.notes}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
           placeholder="Anything important..."
         />
       </label>
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md border border-gray-600 bg-gray-800 px-4 py-2 text-gray-100 hover:bg-gray-700 disabled:opacity-60"
+          className="h-10 rounded-md border border-gray-600 bg-gray-800 px-4 text-gray-100 hover:bg-gray-700 disabled:opacity-60"
         >
           {saving ? "Saving..." : "Save"}
         </button>
         <button
           type="button"
           onClick={() => history.back()}
-          className="rounded-md border border-gray-700 bg-transparent px-4 py-2 text-gray-200 hover:bg-gray-800/60"
+          className="h-10 rounded-md border border-gray-700 bg-transparent px-4 text-gray-200 hover:bg-gray-800/60"
         >
           Cancel
         </button>
