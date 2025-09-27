@@ -7,21 +7,31 @@ type Body = { ids: string[] };
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+  const email = session?.user?.email;
+  if (!email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) return NextResponse.json({ error: "User not found" }, { status: 400 });
-
-  const { ids } = (await req.json().catch(() => ({}))) as Body;
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return NextResponse.json({ error: "No ids provided" }, { status: 400 });
+  let body: Body | undefined;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Delete only reservations belonging to this user
+  const ids = Array.isArray(body?.ids)
+    ? body!.ids.filter((x): x is string => typeof x === "string" && x.length > 0)
+    : [];
+
+  if (ids.length === 0) {
+    return NextResponse.json({ error: "No ids to delete" }, { status: 400 });
+  }
+
   const result = await prisma.reservation.deleteMany({
-    where: { id: { in: ids }, userId: user.id },
+    where: {
+      id: { in: ids },
+      user: { email }, // ✅ relation filter (no userId column)
+    },
   });
 
   return NextResponse.json({ ok: true, deleted: result.count });

@@ -2,17 +2,15 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
+import Link from "next/link";
 import { updateReservationField } from "@/app/reservations/actions";
 import { relTimeFromNow } from "@/lib/parseStartAt";
-
-type DbStatus = "PENDING" | "ASSIGNED" | "COMPLETED" | "R_RECEIVED";
 
 type Reservation = {
   id: string;
   startAt: string | Date;          // stored in UTC; string ISO or Date
   pickupText?: string | null;
   dropoffText?: string | null;
-  status: DbStatus;
   pax: number;
   notes: string | null;
   priceEuro?: number | null;
@@ -25,13 +23,6 @@ const euro = new Intl.NumberFormat(undefined, {
   minimumFractionDigits: 0,
 });
 
-const STATUS_OPTIONS: { v: DbStatus; label: string }[] = [
-  { v: "PENDING", label: "Pending" },
-  { v: "ASSIGNED", label: "Assigned" },
-  { v: "COMPLETED", label: "Completed" },
-  { v: "R_RECEIVED", label: "R received" },
-];
-
 export default function ReservationsTable({ items }: { items: Reservation[] }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900 text-gray-100">
@@ -42,11 +33,11 @@ export default function ReservationsTable({ items }: { items: Reservation[] }) {
             <th className="px-4 py-2 font-medium">When</th>
             <th className="px-4 py-2 font-medium">From</th>
             <th className="px-4 py-2 font-medium">To</th>
-            <th className="px-4 py-2 font-medium">Status</th>
             <th className="px-4 py-2 font-medium">Pax</th>
             <th className="px-4 py-2 font-medium">Driver</th>
             <th className="px-4 py-2 font-medium text-right">Price</th>
             <th className="px-4 py-2 font-medium">Notes</th>
+            <th className="px-4 py-2 font-medium text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -89,9 +80,6 @@ function Row({ r }: { r: Reservation }) {
       <td className="px-4 py-2 max-w-[220px]">
         <Ellipsis text={r.dropoffText || "—"} />
       </td>
-      <td className="px-4 py-2 w-40">
-        <EditableStatus id={r.id} initial={r.status} />
-      </td>
       <td className="px-4 py-2 w-24">
         <EditablePax id={r.id} initial={r.pax} />
       </td>
@@ -104,6 +92,14 @@ function Row({ r }: { r: Reservation }) {
       <td className="px-4 py-2 min-w-[220px]">
         <EditableNotes id={r.id} initial={r.notes ?? ""} />
       </td>
+      <td className="px-4 py-2 text-right">
+        <Link
+          href={`/reservations/${r.id}/edit`}
+          className="inline-block rounded-md border border-gray-600 bg-gray-800 px-3 py-1 text-gray-100 hover:bg-gray-700"
+        >
+          Edit
+        </Link>
+      </td>
     </tr>
   );
 }
@@ -113,37 +109,6 @@ function Ellipsis({ text }: { text: string }) {
     <span className="block truncate" title={text}>
       {text}
     </span>
-  );
-}
-
-function EditableStatus({ id, initial }: { id: string; initial: DbStatus }) {
-  const [val, setVal] = useState<DbStatus>(initial);
-  const [pending, start] = useTransition();
-
-  function commit(next: DbStatus) {
-    setVal(next);
-    start(async () => {
-      try {
-        await updateReservationField(id, { status: next });
-      } catch {
-        setVal(initial);
-      }
-    });
-  }
-
-  return (
-    <select
-      value={val}
-      onChange={(e) => commit(e.target.value as DbStatus)}
-      className="w-full rounded-md border border-gray-600 bg-gray-800 px-2 py-1 text-gray-100"
-      disabled={pending}
-    >
-      {STATUS_OPTIONS.map((s) => (
-        <option key={s.v} value={s.v}>
-          {s.label}
-        </option>
-      ))}
-    </select>
   );
 }
 
