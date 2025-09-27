@@ -1,3 +1,4 @@
+// src/app/reservations/[id]/edit/EditReservationForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -13,7 +14,6 @@ type Initial = {
   priceEuro?: number | null;
   phone?: string | null;
   flight?: string | null;
-  driver?: string | null;
   notes?: string | null;
 };
 
@@ -25,8 +25,8 @@ function toLocalInput(dt?: string | Date | null) {
   return local.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
 }
 function localInputToUTC(v: string) {
-  const d = new Date(v);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  // Correct conversion: Date(v) interprets local wall time and produces the right UTC instant.
+  return new Date(v);
 }
 
 export default function EditReservationForm({ initial }: { initial: Initial }) {
@@ -42,7 +42,6 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
     priceEuro: initial.priceEuro ?? "",
     phone: initial.phone ?? "",
     flight: initial.flight ?? "",
-    driver: initial.driver ?? "",
     notes: initial.notes ?? "",
   });
 
@@ -63,7 +62,6 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
             : Number(form.priceEuro),
         phone: form.phone.trim() || null,
         flight: form.flight.trim() || null,
-        driver: form.driver.trim() || null,
         notes: form.notes.trim() || null,
       };
 
@@ -178,16 +176,6 @@ export default function EditReservationForm({ initial }: { initial: Initial }) {
             value={form.flight}
             onChange={(e) => setForm({ ...form, flight: e.target.value })}
             placeholder="VY1234"
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-1 block text-sm text-gray-300">Driver</span>
-          <input
-            className="w-full rounded-md border border-gray-600 bg-gray-800 px-3 py-2 text-gray-100 placeholder-gray-400"
-            value={form.driver}
-            onChange={(e) => setForm({ ...form, driver: e.target.value })}
-            placeholder="Name / phone"
           />
         </label>
       </div>

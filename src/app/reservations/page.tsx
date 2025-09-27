@@ -1,36 +1,33 @@
 export const runtime = "nodejs";
-export const revalidate = 0; // ⬅️ add this at the very top
-
-// or alternatively:
-// export const dynamic = "force-dynamic";
-
+export const revalidate = 0;
 
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
-import ReservationsList from "@/components/ReservationsList";
-import SortControls from "@/components/SortControls"; // ⬅️ add this
-import Link from "next/link";
-
-// ❌ removed: ReservationsFilters + ReservationStatus type
+import ReservationsListView from "@/components/ReservationsList"; // alias to avoid name clash
 
 type Search = { from?: string; to?: string; sort?: "asc" | "desc" };
 
-export default async function ReservationsPage({ searchParams = {} as Search }) {
+export default async function ReservationsPage({
+  searchParams,
+}: {
+  searchParams?: Search;
+}) {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
   if (!email) redirect("/login");
 
+  const params = searchParams ?? {};
   const where: any = { userEmail: email };
 
-  if (searchParams.from || searchParams.to) {
+  if (params.from || params.to) {
     where.startAt = {};
-    if (searchParams.from) where.startAt.gte = new Date(searchParams.from + "T00:00:00");
-    if (searchParams.to) where.startAt.lte = new Date(searchParams.to + "T23:59:59");
+    if (params.from) where.startAt.gte = new Date(params.from + "T00:00:00");
+    if (params.to) where.startAt.lte = new Date(params.to + "T23:59:59");
   }
 
-  const sortDir: "asc" | "desc" = searchParams.sort === "asc" ? "asc" : "desc";
+  const sortDir: "asc" | "desc" = params.sort === "asc" ? "asc" : "desc";
 
   const reservations = await prisma.reservation.findMany({
     where,
@@ -46,31 +43,26 @@ export default async function ReservationsPage({ searchParams = {} as Search }) 
       phone: true,
       flight: true,
       notes: true,
-      userEmail: true,
-      // ❌ removed: status
     },
   });
 
   const items = reservations.map((r) => ({
-    ...r,
-    startAt: r.startAt.getTime(), // ✅ epoch ms
+    id: r.id,
+    startAt: r.startAt.getTime(), // epoch ms for client
     endAt: null as number | null,
-    // ❌ removed: status mapping
+    pickupText: r.pickupText,
+    dropoffText: r.dropoffText,
+    pax: r.pax,
+    priceEuro: r.priceEuro,
+    phone: r.phone,
+    flight: r.flight,
+    notes: r.notes,
   }));
 
   return (
     <div className="mx-auto max-w-2xl p-4">
       <h1 className="mb-4 text-2xl font-semibold">Reservations</h1>
-      {/* ❌ removed <ReservationsFilters /> */}
-      <ReservationsList items={items} />
+      <ReservationsListView items={items} />
     </div>
-    
   );
-  (
-  <div className="mx-auto max-w-2xl p-4">
-    <h1 className="mb-4 text-2xl font-semibold">Reservations</h1>
-    <SortControls />  {/* ⬅️ new sort control */}
-    <ReservationsList items={items} />
-  </div>
-);
 }

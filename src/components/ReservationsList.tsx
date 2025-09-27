@@ -135,7 +135,7 @@ export default function ReservationsList({ items }: Props) {
                   {/* status badge was here – removed */}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">{/* ← mobile wrap */}
                   <button
                     onClick={() => setOpenId(open ? null : r.id)}
                     className="rounded-md border border-white/10 px-3 py-1.5 text-sm hover:bg-white/5"
@@ -143,7 +143,7 @@ export default function ReservationsList({ items }: Props) {
                     {open ? "Hide" : "Details"}
                   </button>
 
-                  {/* NEW: Edit button */}
+                  {/* Edit button */}
                   <Link
                     href={`/reservations/${r.id}/edit`}
                     className="rounded-md border border-white/10 px-3 py-1.5 text-sm hover:bg-white/5"
