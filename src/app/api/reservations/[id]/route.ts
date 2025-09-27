@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
+import { revalidatePath } from "next/cache"; // ⬅️ NEW
 
 // --- PATCH: update a reservation ---
 export async function PATCH(
@@ -74,6 +75,7 @@ export async function PATCH(
     data,
   });
 
+  revalidatePath("/reservations"); // ⬅️ force the list page to refresh
   return NextResponse.json({ ok: true });
 }
 
@@ -97,5 +99,6 @@ export async function DELETE(
   }
 
   await prisma.reservation.delete({ where: { id: params.id } });
+  revalidatePath("/reservations"); // ✅ also revalidate on delete
   return NextResponse.json({ ok: true });
 }

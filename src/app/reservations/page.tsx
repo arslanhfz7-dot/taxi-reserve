@@ -1,4 +1,9 @@
 export const runtime = "nodejs";
+export const revalidate = 0; // ⬅️ add this at the very top
+
+// or alternatively:
+// export const dynamic = "force-dynamic";
+
 
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
