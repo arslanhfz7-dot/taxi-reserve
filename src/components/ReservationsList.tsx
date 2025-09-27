@@ -3,6 +3,7 @@
 
 import { useState, useEffect, type ReactNode } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 /* ---------- Types ---------- */
 type Reservation = {
@@ -141,6 +142,15 @@ export default function ReservationsList({ items }: Props) {
                   >
                     {open ? "Hide" : "Details"}
                   </button>
+
+                  {/* NEW: Edit button */}
+                  <Link
+                    href={`/reservations/${r.id}/edit`}
+                    className="rounded-md border border-white/10 px-3 py-1.5 text-sm hover:bg-white/5"
+                    title="Edit reservation"
+                  >
+                    Edit
+                  </Link>
 
                   <button
                     disabled={busyId === r.id}
