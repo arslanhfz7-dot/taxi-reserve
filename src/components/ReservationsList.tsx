@@ -73,6 +73,30 @@ function CalendarIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+/* Small inline trash icon for Delete (no extra deps) */
+function TrashIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+    </svg>
+  );
+}
+
 /* Build best calendar link for a reservation (Android => Google; others => ICS) */
 function getReminderLink(r: Reservation) {
   const start = new Date(r.startAt);
@@ -222,17 +246,19 @@ export default function ReservationsList({ items }: Props) {
                     <CalendarIcon className="h-4 w-4" />
                   </button>
 
+                  {/* 🗑️ Icon-only Delete button (compact, red) */}
                   <button
                     disabled={busyId === r.id}
                     onClick={() => handleDelete(r.id)}
-                    className={`rounded-md px-3 py-1.5 text-sm ${
+                    title={busyId === r.id ? "Deleting…" : "Delete reservation"}
+                    aria-label="Delete reservation"
+                    className={`rounded-md p-1 border ${
                       busyId === r.id
-                        ? "cursor-wait bg-red-700/40 text-red-200"
-                        : "bg-red-600/20 text-red-300 hover:bg-red-600/30"
+                        ? "cursor-wait opacity-60 border-red-600/30 bg-red-700/20 text-red-200"
+                        : "border-red-600/30 bg-red-600/20 text-red-300 hover:bg-red-600/30"
                     }`}
-                    title="Delete reservation"
                   >
-                    {busyId === r.id ? "Deleting…" : "Delete"}
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>
