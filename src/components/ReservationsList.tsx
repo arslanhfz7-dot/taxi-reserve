@@ -50,6 +50,39 @@ function Field({
   );
 }
 
+/* Build best calendar link for a reservation (Android => Google; others => ICS) */
+function getReminderLink(r: Reservation) {
+  const start = new Date(r.startAt);
+  const end = new Date((r.endAt ?? (start.getTime() + 60 * 60 * 1000))); // default 1h
+
+  // YYYYMMDDTHHMMSSZ in UTC
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const fmt = (d: Date) =>
+    d.getUTCFullYear().toString() +
+    pad(d.getUTCMonth() + 1) +
+    pad(d.getUTCDate()) +
+    "T" +
+    pad(d.getUTCHours()) +
+    pad(d.getUTCMinutes()) +
+    pad(d.getUTCSeconds()) +
+    "Z";
+
+  const base = "https://calendar.google.com/calendar/render";
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: "Assign booking",
+    dates: `${fmt(start)}/${fmt(end)}`,
+    details: "You have a booking to assign in 45 minutes",
+  });
+  if (r.pickupText) params.set("location", r.pickupText);
+
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent.toLowerCase() : "";
+  const isAndroid = /android/.test(ua);
+
+  // Android → Google Calendar; iOS/mac/Windows → ICS (your API route)
+  return isAndroid ? `${base}?${params.toString()}` : `/api/ics/${r.id}`;
+}
+
 /* ---------- Component ---------- */
 export default function ReservationsList({ items }: Props) {
   const router = useRouter();
@@ -151,6 +184,19 @@ export default function ReservationsList({ items }: Props) {
                   >
                     Edit
                   </Link>
+
+                  {/* 📅 Reminder button (auto-detects platform) */}
+                  <button
+                    onClick={() => {
+                      const link = getReminderLink(r);
+                      window.open(link, "_blank");
+                    }}
+                    title="Add Reminder (45m before)"
+                    aria-label="Add Reminder (45m before)"
+                    className="rounded-md border border-white/10 px-3 py-1.5 text-sm hover:bg-white/5"
+                  >
+                    📅 Reminder
+                  </button>
 
                   <button
                     disabled={busyId === r.id}
